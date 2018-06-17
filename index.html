@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Prototipo</title>
+    <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?v3"></script>
+</head>
+<body>
+    
+    <div>
+	<h1>Trazar rutas de un sistema de recoleccion de basura básico</h1>
+    </div>	
+    <form action="#">
+        <div>
+            <label for="">Empresa: </label>
+            <select name="" id="empresas">  
+                <option value="0">Promoambiental distrito</option>
+                <option value="1">Lime</option>
+                <option value="2">Ciudad limpia</option>
+                <option value="3">Bogotá Limpia</option>
+                <option value="4">Area Limpia</option>
+            </select>
+        </div>
+        <div>
+            <label for="">Localidades: </label>
+            <select name="" id="localidades">  
+                
+            </select>
+        </div>
+        <div>
+            <label for="">Sectores: </label>
+            <select name="" id="sectores">  
+                <option value=""></option>
+                <option value="0">Usaquén</option>
+                <option value="1">Apolo III</option>
+                <option value="2">Navarra</option>
+                <option value="3">Santa Isabel</option>
+            </select>
+        </div>
+
+    </form>
+
+    <div id="mapa" style="width:700px; height:500px">
+
+    </div>
+
+    <script>
+        ((c, w) => {
+
+            var selectEmpresas;
+            var selectLocalidades;
+            var selectSectores;
+            var lugar;
+
+            function iniciar(){
+                selectEmpresas.addEventListener("change", (e) => {
+                    let value = parseInt(e.target.value);
+
+                    selectLocalidades.innerHTML = "";
+                    
+                    if(value == 0) mostrarLocalidades(["Usaquén", "Chapinero", "La candelaria", "San cristobal"]);
+                    else if(value == 1) mostrarLocalidades(["Ciudad Bolivar", "Tunjuelito", "Bosa" , "Rafael Uribe Uribe", "Los Martires"]);
+                    else if(value == 2) mostrarLocalidades(["Kennedy", "Fontibon"]);
+                    else if(value == 3) mostrarLocalidades(["Engativa", "Barrios Unidos"]);  
+                    else if(value == 4) mostrarLocalidades(["Suba"]);
+                      
+                });
+            }
+
+            function mostrarLocalidades( localidades ){
+               
+                for( let i = 0; i < localidades.length; i++) {
+                    selectLocalidades.innerHTML += `
+                        <option value="${i}">${localidades[i]}</option>    
+                    `
+                }
+                
+                if(selectSectores.onchange == null){
+                    selectSectores.onchange = (e) => {
+                        let value = e.target.selectedOptions[0].textContent;
+                        
+                        lugar = value;
+                        
+                        mostrarMapa();
+                    };
+                }
+                c.log(selectSectores);
+                
+            }
+
+
+
+            
+            // Se encarga de mostrar el mapa
+            function mostrarMapa(){
+                var mapa = document.getElementById("mapa");
+                var positions = [];
+
+                var infoSector = {
+                    address: `Colombia, Bogota D.C,${lugar}`
+                }
+                
+                var geoCoder = new google.maps.Geocoder();
+                
+                geoCoder.geocode(infoSector , (data) => {
+                    
+                    var geoLocation = data[0].geometry.location; // objeto LatLng de google
+                    c.log(geoLocation.lng());
+                    var objConfigMap = {
+                        zoom: 16,
+                        center: geoLocation
+                    };
+
+                    var geoMapa = new google.maps.Map(mapa, objConfigMap);
+                    
+                    var rectangle = new google.maps.Rectangle({
+                        strokeColor: '#FF0000',
+                        strokeOpacity: 0.8,
+                        strokeWeight: 2,
+                        fillColor: '#ffffff',
+                        fillOpacity: 0.35,
+                        map: geoMapa,
+                        bounds: data[0].geometry.bounds,
+                        clickable: false
+                    });
+                    
+                    
+                    geoMapa.addListener('click', (e) => {
+                        placeMarkerAndPanTo(e.latLng, geoMapa);
+                    });
+
+                    function placeMarkerAndPanTo(latLng, map) {
+                        var marker = new google.maps.Marker({
+                            position: latLng,
+                            map: map
+                        });
+                        
+                        // Central el mapa en la longitud/latitud dada
+                        map.panTo(latLng);
+                        
+                        positions.push(latLng);
+
+                        if(positions.length > 1){
+                            marcarRuta();
+                        }
+                        
+                    }
+
+                    function marcarRuta(){
+                        c.log(positions);
+                        var configDR = {
+                            map: geoMapa,
+                            suppressMarkers: true
+                        }
+                        var configDS = {
+                            origin: positions[positions.length-2],
+                            destination: positions[positions.length-1],
+                            travelMode: google.maps.TravelMode.DRIVING
+                        }
+
+                        // Se encarga de obtener las coordenadas entre un punto y otro
+                        var ds = new google.maps.DirectionsService() 
+                    
+                        // Se encarga traducir la ruta en el mapa
+                        var dr = new google.maps.DirectionsRenderer(configDR);
+
+                        ds.route(configDS, (result , status)  => {
+                            if(status == 'OK'){
+                                dr.setDirections(result);
+                            }else{  
+                                c.log(status);
+                            }
+                        });
+                    }
+                });
+            }
+
+
+
+            w.onload =( () => { 
+                selectEmpresas = document.getElementById("empresas");
+                selectLocalidades = document.getElementById("localidades");
+                selectSectores = document.getElementById("sectores");
+                iniciar();
+            })();
+
+        })(console, window);
+
+    </script>
+</body>
+</html>
